@@ -54,15 +54,12 @@ class ShapeToGeom:
         def Borders(self):
             return self._lstBorders
 
-
-
-                
         
         # to unit sphere
         @staticmethod
         def _sphToEuc(degLat, degLon):
-                degLat = math.radians(degLat);
-                degLon = math.radians(degLon);
+                degLat = math.radians(degLat)
+                degLon = math.radians(degLon)
                 x = math.cos(degLat) * math.sin(degLon)
                 y = math.sin(degLat)
                 z = math.cos(degLat) * math.cos(degLon)
@@ -83,26 +80,9 @@ class ShapeToGeom:
 
                 lstPoints = []
 
-                target = v3Dest.normalized()
-                normal = Vector3(0, 1, 0)
-                rotAxis = normal.cross(target)
-                angle = math.acos(target.dot(normal))
-
-
-
-                t = Matrix4()
-                t.translate(target.x, target.y, target.z)
-                t.rotate_axis(angle, rotAxis)
-                t.scale(1.0/180.0, 1, -1.0/90.0)
-
-
-                massCenter = ShapeToGeom._bboxCenter(shape.bbox)
-
                 for point in shape.points:
 
                         v3d = ShapeToGeom._sphToEuc(point[1], point[0])
                         lstPoints.append(v3d)
 
                 return lstPoints
-
-                        
