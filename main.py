@@ -12,53 +12,8 @@ from omegaToolkit import *
 from qtest import *
 
 
-# sf = shapefile.Reader("data/TM_WORLD_BORDERS_SIMPL/TM_WORLD_BORDERS_SIMPL.shp")
-# sf2 = shapefile.Reader("data/tst.shp")
-# shapes = sf.shapes()
-# records = sf.records()
-# shapes2 = sf2.shapes()
-# print(len(shapes))
-# print(len(shapes2))
-# print(sf2.bbox)
-#
-# print("*********** ShapeFile:")
-# for name in dir(sf):
-#         print(name)
-#
-# print("BBOX: " + str(sf.bbox))
-#
-# print("\n\n****************** Shape:")
-# for name in dir(shapes[3]):
-#         if not name.startswith('__'):
-# #                print(name)
-#                 pass
-#
-#
-# print("Shape type: " + str(shapes[3].shapeType))
-# print("Name: " + records[243][4])
-# print("Points" + str(shapes[243].points))
-# print("Points" + str(shapes2[2].points))
-# print("Parts: " + str(shapes[3].parts))
-# print("BBox: " + str(shapes[3].bbox))
-#
-# print("\n\n\n\n")
-#
-# for shape in shapes:
-# #        print(shape.shapeType)
-#         pass
-#
-# print(sf.fields)
-#
-# shpRecs = sf.shapeRecords()
-# for sr in shpRecs:
-# #                print(sr.record[9])
-#         pass
-#
-#
-# print("\n\n\n")
-# print(shpRecs[0].shape.points[0][1])
-#
-# print("\n\n\n")
+################################################################################
+# ########################## Initial Setup #####################################
 ################################################################################
 
 # Give a render hint to the OpenSceneGraph module (if loaded): create a depth partition at 1000. 
@@ -73,10 +28,13 @@ everything = SceneNode.create('everything')
 cam = getDefaultCamera()
 cam.setNearFarZ(0.1, 100000000)
 ctrl = cam.getController()
-#ctrl.setFreeFlyEnabled(False)
 cam.setControllerEnabled(False)
 cam.setBackgroundColor(Color(0.0, 0.0, 0.0, 1.0))
 
+
+################################################################################
+# ############################# Utility ########################################
+################################################################################
 
 def colorLerp(vHigh, vLow, t):
         dt = 1 - t
@@ -92,6 +50,10 @@ def cartToSph(v3Pos):
     #print("(" + str(lat) + ", " + str(lon) + ")")
     return Vector2(lat, lon)
 
+
+################################################################################
+# ########################## Widget Wrpappers ##################################
+################################################################################
 
 class LabelUpdater:
 
@@ -161,6 +123,10 @@ class RangeSlider:
                 self._label.update(str(vL) + "-" + str(vH))
                 self._update(vL, vH)
 
+
+################################################################################
+# ########################## Filter Defs #######################################
+################################################################################
 
 class DefFilter:
         @classmethod
@@ -299,6 +265,10 @@ class DefMagnitudeFilter(DefFilter):
                 return s
 
 
+################################################################################
+# ######################## Global Config Map ###################################
+################################################################################
+
 class GrandCfg:
         SCALE = 0
         ZOOM = 1
@@ -358,36 +328,9 @@ class GrandCfg:
 GrandCfg.init()
 
 
-
-stg = ShapeToGeom("data/TM_WORLD_BORDERS_SIMPL/TM_WORLD_BORDERS_SIMPL.shp", \
-                  "data/tst.shp")
-#lstBorders = stg.Borders()
-#
-#
-# borders = LineSet.create()
-# thickness = 0.005
-#
-# count = 0
-# for border in lstBorders:
-#
-#         if count > 5:
-#             break
-#         count += 1
-#         size = len(border)
-#         for idx in range(size):
-#                 idx2 = idx + 1 if idx < size - 1 else 0
-#                 line = borders.addLine()
-#                 line.setStart(border[idx])
-#                 line.setEnd(border[idx2])
-#                 line.setThickness(thickness)
-#                 #s = SphereShape.create(thickness * 0.5, 2)
-#                 #borders.addChild(s)
-#                 #s.setEffect('colored -e red')
-#                 #s.setPosition(border[idx2])
-#
-# borders.setEffect('colored -e red -C')
-# borders.setPosition(Vector3(0, 0, -3))
-# borders.setCullingActive(False)
+################################################################################
+# ########################## Earth Model Setup #################################
+################################################################################
 
 earthModel = ModelInfo()
 earthModel.name = "earth"
@@ -442,10 +385,13 @@ def earthRotate90():
         earth.rotate(axis.normalized(), radians(90), Space.Local)
 
 
+################################################################################
+# ############################ World Borders ###################################
+################################################################################
 
 
-
-
+stg = ShapeToGeom("data/TM_WORLD_BORDERS_SIMPL/TM_WORLD_BORDERS_SIMPL.shp", \
+                  "data/tst.shp")
 lstBorders = stg.Borders()
 thickness = 0.005
 
@@ -458,16 +404,11 @@ cH = Vector3(115 / 255.0, 95 / 255.0, 34 / 255.0)
 cL = Vector3(36 / 255.0, 33 / 255.0, 26 / 255.0)
 for i in range(0, len(lstBorders), 1):
         count += 1
-        #if count > 100:
-         #   break
-
-        #if (count % 2 == 1):
-         #   continue
 
         border = lstBorders[i]
         color = colorLerp(cH, cL, (i % 10) * 0.1)
         size = len(border)
-        #print(size % 3 == 0)
+
         for idx in range(0, size, 3):
 
                 geom.addVertex(border[idx])
@@ -479,14 +420,6 @@ for i in range(0, len(lstBorders), 1):
                 geom.addPrimitive(PrimitiveType.Triangles, primitiveIdx, 3)
                 primitiveIdx += 3
 
-# geom.addVertex(Vector3(-1, 2, -1))
-# geom.addColor(Color(0.7, 0, 0, 1))
-# geom.addVertex(Vector3(0, 0, 0))
-# geom.addColor(Color(0.7, 0, 0, 1))
-# geom.addVertex(Vector3(1, 2, -1))
-# geom.addColor(Color(0.7, 0, 0, 1))
-# geom.addPrimitive(PrimitiveType.Triangles, 0, 3)
-
 sceneMgr.addModel(geom)
 
 borders = StaticObject.create(name)
@@ -496,11 +429,13 @@ borders.getMaterial().setShininess(0.0)
 earth.addChild(borders)
 
 
+
+################################################################################
+# ################################ Lights ######################################
+################################################################################
+
 everything.setPosition(Vector3(0, 0, 0))
-#cam.setPosition(cam.getHeadOffset() * -1)
 cam.translate(0, -1.5, 3, Space.World)
-
-
 
 
 light1 = Light.create()
@@ -515,37 +450,9 @@ light1.setShadowRefreshMode(ShadowRefreshMode.OnLightMove)
 everything.addChild(light1)
 
 
-
 ################################################################################
-
-# class Bars:
-#
-#         def __init__(self, qdb):
-#                 self._qdb = qdb
-#
-#         def Build(self, scale):
-#                 lineset = LineSet.create()
-#                 thickness = 0.005
-#
-#                 count = 0
-#                 lstQEntries = self._qdb.QEntries()
-#                 for entry in lstQEntries:
-#
-#                         count += 1
-#
-#                         p = entry._p.normalized()
-#                         q = p * entry._depth * scale
-#                         q += p
-#
-#                         line = lineset.addLine()
-#                         line.setStart(p)
-#                         line.setEnd(q)
-#                         line.setThickness(thickness)
-#
-#                 lineset.setEffect('colored -e red -C')
-#                 #lineset.setPosition(Vector3(0, 0, -3))
-#                 lineset.setCullingActive(False)
-#                 return lineset
+# ####################### Earthquake Representation ############################
+################################################################################
 
 class Bars:
 
@@ -717,7 +624,6 @@ class Bars:
                 Bars._instantiate(Bars._name, geom)
 
 
-
 ################################################################################
 
 qdb = QDB("data/query1950.csv")
@@ -732,7 +638,7 @@ Bars.init(qdb, earth)
 
 
 ################################################################################
-#############################       UI      ####################################
+# ############################       UI      ###################################
 ################################################################################
 
 menuSpeColor = Color("#136624")
@@ -1035,6 +941,9 @@ def onRadioWestPolynesiaEvent():
 
 
 ################################################################################
+# ########################## Control Dispatch ##################################
+################################################################################
+
 class UniController:
 
         def _velocity(self, pos):
@@ -1066,15 +975,8 @@ class UniController:
                 if (not self._enabled):
                         return
 
-                #self._velocity(pos)
-                #print(self._disp)
-
-                #dx = velocity.x - self._start.x
-                #dy = velocity.y - self._start.y
                 self._targetDisp.x = disp.x
                 self._targetDisp.y = disp.y
-                #self._node.rotate(Vector3(0, 1, 0), radians(disp.x), Space.World)
-                #self._node.rotate(Vector3(1, 0, 0), radians(disp.y), Space.World)
 
 
 
@@ -1098,6 +1000,12 @@ class UniController:
                 GrandCfg.set(GrandCfg.LOCATION, pos)
 
 uctrl = UniController(earth)
+
+
+################################################################################
+# ######################### Main Event Handler #################################
+################################################################################
+
 screenR = getDisplayConfig().getCanvasRect()
 print("screen is: " + str(screenR[2]) + "x" + str(screenR[3]))
 screen = Vector2(1.0 / screenR[2], 1.0 / screenR[3])
@@ -1108,15 +1016,6 @@ def handleEvent():
 
         # 0 on desktop
         sourceID = event.getSourceId()
-
-        #print(e.getPosition())
-        #print(e.getType())
-        # if(e.isButtonDown(EventFlags.ButtonLeft) or e.isButtonDown(EventFlags.Button3)):
-        #     print("Left button pressed")
-        #     ToggleInteract.ActionPressed()
-        # if(e.isButtonUp(EventFlags.ButtonLeft) or e.isButtonUp(EventFlags.Button3)):
-        #     print("Left button released")
-        #     ToggleInteract.ActionReleased()
 
         if (event.getServiceType() is ServiceType.Wand):
                 # here handle wand

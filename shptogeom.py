@@ -2,7 +2,7 @@ import math
 from euclid import *
 import shapefile
 
-from seidel import Triangulator
+
 
 
 class _MetaObj:
@@ -36,12 +36,9 @@ class ShapeToGeom:
                 shps.reverse()
                 print(self._sf2.bbox)
                 self._lstBorders = []
-                #print(len(list(self._itShpRecs)))
-                
-                #for shp, rec in self._itShpRecs:
+
                 for idx, sr in enumerate(self._shpRecs):
-                        #shp = self._sf.shape(0)
-                        #rec = self._sf.record(0)
+
                         # indent
                         shp = shps[idx]
                         rec = sr.record
@@ -53,7 +50,6 @@ class ShapeToGeom:
                         lstPoints = ShapeToGeom._shapeToPoints(shp, origin)
                         self._lstBorders.append(lstPoints)
 
-                        #print(lstPoints)
 
         def Borders(self):
             return self._lstBorders
@@ -103,14 +99,10 @@ class ShapeToGeom:
                 massCenter = ShapeToGeom._bboxCenter(shape.bbox)
 
                 for point in shape.points:
-                        #v = Vector2(point[0], point[1])
-                        #v = v - massCenter
-                        #v3d = Vector3(v.x, 0, v.y)
-                        #v3d = t.transform(v3d)
+
                         v3d = ShapeToGeom._sphToEuc(point[1], point[0])
                         lstPoints.append(v3d)
 
-                #lstPoints.reverse()
                 return lstPoints
 
                         
