@@ -3,6 +3,7 @@ import csv
 import threading
 from shptogeom import ShapeToGeom
 
+from collections import deque
 from math import *
 from euclid import *
 from omega import *
@@ -375,9 +376,10 @@ def earthFixOrientation():
         earth.rotate(axis.normalized(), angle, Space.Local)
 
 def earthWorldRoll(degAngle):
-        target = earth.getPosition() + Vector3(0, 0, 1)
-        axis = earth.convertWorldToLocalPosition(target)
-        earth.rotate(axis.normalized(), radians(degAngle), Space.Local)
+        #target = earth.getPosition() + Vector3(0, 0, 1)
+        #axis = earth.convertWorldToLocalPosition(target)
+        #earth.rotate(axis.normalized(), radians(degAngle), Space.Local)
+        earth.rotate(Vector3(0, 0, 1), radians(degAngle), Space.World)
 
 def earthRotate90():
         target = earth.getPosition() + Vector3(0, 1, 0)
@@ -465,6 +467,36 @@ class Bars:
         _scale = 10
         _name = "Geom_Bars"
         _lock = None
+        _lstGeom = None
+        _pollCount = 0
+
+        class GeomModel:
+                def __init__(self, geom):
+                        self.timestamp = datetime.datetime.now().time()
+                        self.geom = geom
+
+                @staticmethod
+                def Compare(x, y):
+                        if x.timestamp < y.timestamp:
+                                return - 1
+                        elif x.timestamp == y.timestamp:
+                                return 0
+                        else:
+                                return 1
+
+        class DoBars(threading.Thread):
+                # lstQEntries, scale, boolShowByMag
+                def __init__(self, filter, scale, boolShowByMag):
+
+                        super(Bars.DoBars, self).__init__()
+                        self.filter = filter
+                        self.scale = scale
+                        self.showByMag = boolShowByMag
+
+                def run(self):
+
+                        query = Bars._qdb.queryByFilter(self.filter)
+                        Bars._build(query, self.scale, self.showByMag)
 
         @staticmethod
         def init(Qdb, parent):
@@ -473,10 +505,20 @@ class Bars:
                 GrandCfg.addCallback(GrandCfg.SCALE, Bars)
                 GrandCfg.addCallback(GrandCfg.FILTER, Bars)
                 GrandCfg.addCallback(GrandCfg.SHOWBYMAG, Bars)
+
                 Bars._lock = threading.Lock()
+                Bars._lstGeom = []
+                Bars._pollCount = 0
 
                 if Bars._obj is None:
                         Bars.update(1)
+
+        @staticmethod
+        def addGeomCandidate(geomModel):
+                # block
+                Bars._lock.acquire(True)
+                Bars._lstGeom.append(geomModel)
+                Bars._lock.release()
 
         @staticmethod
         def _markCached(tuple):
@@ -498,22 +540,34 @@ class Bars:
                 return False
 
         @staticmethod
-        def _instantiate(name, geom):
+        def pollInstantiate():
 
-                t = threading.current_thread()
+                Bars._pollCount += 1
 
-                # block
-                Bars._lock.acquire(True)
+                if Bars._pollCount < 100:
+                        return
+
+                if len(Bars._lstGeom) == 0:
+                        return
+
+                if not Bars._lock.acquire(False):
+                        return
+
+                Bars._pollCount = 0
+                Bars._lstGeom.sort(cmp=Bars.GeomModel.Compare, reverse=True)
+
+                geomModel = Bars._lstGeom.pop()
+                Bars._lstGeom = []
 
                 if Bars._obj is not None:
                         parent = Bars._obj.getParent()
                         parent.removeChildByRef(Bars._obj)
                         Bars._obj = None
 
-                sceneMgr.addModel(geom)
-                Bars._obj = StaticObject.create(name)
+                sceneMgr.addModel(geomModel.geom)
+                Bars._obj = StaticObject.create(Bars._name)
                 Bars._obj.setSelectable(False)
-                Bars._obj.setCullingActive(False)
+                Bars._obj.setCullingActive(True)
                 Bars._obj.getMaterial().setProgram("colored byvertex")
                 Bars._parent.addChild(Bars._obj)
 
@@ -535,8 +589,9 @@ class Bars:
                         scale = float(scale) / maxmag * 0.1
 
                 #Bars._build(filter, scale, showByMag)
-                t = threading.Thread(target=Bars._prep, args=(filter, scale, showByMag))
+                t = Bars.DoBars(filter, scale, showByMag)
                 t.start()
+                print("***** Returned ****")
 
         @staticmethod
         def _prep(filter, scale, boolShowByMag):
@@ -555,6 +610,8 @@ class Bars:
                 #         Bars._obj = None
 
                 geom = ModelGeometry.create(Bars._name)
+                geomModel = Bars.GeomModel(geom)
+
                 thickness = 0.005
 
                 t = thickness
@@ -596,32 +653,42 @@ class Bars:
 
                         color = colorLerp(Bars._cH, Bars._cL, (entry._magnitude - mShift) * mRatio)
 
-                        geom.addVertex(v9)
-                        geom.addColor(color)
-                        geom.addVertex(v8)
-                        geom.addColor(color)
-                        geom.addVertex(v7)
-                        geom.addColor(color)
-                        geom.addVertex(v6)
-                        geom.addColor(color)
-                        geom.addVertex(v5)
-                        geom.addColor(color)
-                        geom.addVertex(v4)
-                        geom.addColor(color)
-                        geom.addVertex(v3)
-                        geom.addColor(color)
-                        geom.addVertex(v2)
+                        geom.addVertex(v0)
                         geom.addColor(color)
                         geom.addVertex(v1)
                         geom.addColor(color)
+                        geom.addVertex(v6)
+                        geom.addColor(color)
+                        geom.addVertex(v7)
+                        geom.addColor(color)
+                        geom.addVertex(v4)
+                        geom.addColor(color)
+                        geom.addVertex(v5)
+                        geom.addColor(color)
+                        geom.addVertex(v2)
+                        geom.addColor(color)
+                        geom.addVertex(v3)
+                        geom.addColor(color)
                         geom.addVertex(v0)
                         geom.addColor(color)
+                        geom.addVertex(v1)
+                        geom.addColor(color)
+                        geom.addVertex(v7)
+                        geom.addColor(color)
+                        geom.addVertex(v5)
+                        geom.addColor(color)
+                        geom.addVertex(v3)
+                        geom.addColor(color)
+                        geom.addVertex(v1)
+                        geom.addColor(color)
 
-                        geom.addPrimitive(PrimitiveType.TriangleStrip, vcount, 10)
-                        vcount += 10
+                        geom.addPrimitive(PrimitiveType.TriangleStrip, vcount, 14)
+                        vcount += 14
 
-                # Bars._markCached((location.NAME, scale))
-                Bars._instantiate(Bars._name, geom)
+
+
+                Bars.addGeomCandidate(geomModel)
+
 
 
 ################################################################################
@@ -646,9 +713,9 @@ mm = MenuManager.createAndInitialize()
 ui = UiModule.createAndInitialize()
 wf = ui.getWidgetFactory()
 uiRoot = ui.getUi()
-uiRoot.setLayout(ContainerLayout.LayoutHorizontal)
-uiRoot.setVerticalAlign(VAlign.AlignTop)
-uiRoot.setHorizontalAlign(HAlign.AlignCenter)
+#uiRoot.setLayout(ContainerLayout.LayoutHorizontal)
+#uiRoot.setVerticalAlign(VAlign.AlignTop)
+#uiRoot.setHorizontalAlign(HAlign.AlignCenter)
 
 # Get the default menu (System menu)
 menu = mm.getMainMenu()
@@ -746,6 +813,7 @@ ckbtnShowByMag.setVerticalPrevWidget(rsMag.getSliderHigh())
 locmenu = menu.addSubMenu("Location")
 locmc = locmenu.getContainer()
 locmc.setLayout(ContainerLayout.LayoutVertical)
+locmc.setHorizontalAlign(HAlign.AlignCenter)
 
 ## location input
 def lblHandleLocation(loc):
@@ -843,8 +911,6 @@ def doHistoryTrampoline():
 ### ON_SCREEN HUD
 #24588x3072
 hud = wf.createContainer("HUD", uiRoot, ContainerLayout.LayoutHorizontal)
-#hud.setCenter(Vector2(screen.x/2, 0))
-#hud.setPosition(Vector2(screen.x/2, 0))
 hud.setFillEnabled(True)
 hud.setFillColor(Color(0.0, 0.0, 0.0, 0.85))
 
@@ -886,6 +952,10 @@ lblHudCoordsVal = wf.createLabel("lblHudCoordsVal", hudCoordsc, "")
 GrandCfg.addCallback(GrandCfg.LOCATION,
                      LabelUpdater(lblHudCoordsVal, "", GrandCfg.get(GrandCfg.LOCATION), lblHandleLocation))
 
+hud.setWidth(350)
+#hud.setCenter(Vector2(screenR[2]/2.0, 300))
+print(hud.getWidth())
+hud.setPosition(Vector2(screenR[2]/2 - hud.getWidth()/2, 0))
 
 def onSliderScaleEvent():
         GrandCfg.set(GrandCfg.SCALE, sliderScale.getValue() + 1)
@@ -946,21 +1016,14 @@ def onRadioWestPolynesiaEvent():
 
 class UniController:
 
-        def _velocity(self, pos):
-                self._disp.x = pos.x - self._start.x
-                self._disp.y = pos.y - self._start.y
-                self._start.x = pos.x
-                self._start.y = pos.y
-                self._disp *= 100
-
-
         def __init__(self, node):
                 self._node = node
                 self._screen = Vector2()
                 self._start = Vector2(0, 0);
                 self._enabled = False
-                self._disp = Vector2(0, 0)
                 self._targetDisp = Vector2(0, 0)
+                self._targetZoom = 0.0
+                self._targetRoll = 0.0
 
         def Enable(self, pos):
                 self._enabled = True
@@ -972,32 +1035,51 @@ class UniController:
 
         def Move(self, disp):
 
-                if (not self._enabled):
+                if not self._enabled:
                         return
 
-                self._targetDisp.x = disp.x
-                self._targetDisp.y = disp.y
+                # ugly filter
+                uf = 0.3
 
+                self._targetDisp = self._targetDisp * (1 - uf) + disp * uf
 
 
         def Zoom(self, s):
-                
-                self._node.setScale(self._node.getScale() * s)
-                GrandCfg.set(GrandCfg.ZOOM, self._node.getScale().x)
+
+                self._targetZoom = s
+
+        def Roll(self, r):
+                uf = 0.8
+                self._targetRoll = self._targetRoll * uf + r * (1.0 - uf)
 
         def Update(self, dt):
 
-                if self._targetDisp > 0.0:
-                    self._targetDisp *= 0.3
+                if self._targetDisp.magnitude() > 0.0:
 
-                self._node.rotate(Vector3(0, 1, 0), radians(self._targetDisp.x), Space.World)
-                self._node.rotate(Vector3(1, 0, 0), radians(self._targetDisp.y), Space.World)
+                        self._targetDisp *= 0.8
 
-                pos = self._node.getPosition() + Vector3(0, 0, 1)
-                pos = self._node.convertWorldToLocalPosition(pos)
-                pos.normalize()
-                pos = cartToSph(pos)
-                GrandCfg.set(GrandCfg.LOCATION, pos)
+                        self._node.rotate(Vector3(0, 1, 0), radians(self._targetDisp.x), Space.World)
+                        self._node.rotate(Vector3(1, 0, 0), radians(self._targetDisp.y), Space.World)
+
+                        pos = self._node.getPosition() + Vector3(0, 0, 1)
+                        pos = self._node.convertWorldToLocalPosition(pos)
+                        pos.normalize()
+                        pos = cartToSph(pos)
+                        GrandCfg.set(GrandCfg.LOCATION, pos)
+
+                if self._targetZoom != 0.0:
+
+                        self._targetZoom *= 0.7
+
+                        self._node.setScale(self._node.getScale() * (self._targetZoom + 1.0))
+                        GrandCfg.set(GrandCfg.ZOOM, self._node.getScale().x)
+
+                if self._targetRoll != 0.0:
+
+                        self._targetRoll *= 0.6
+                        earth.rotate(Vector3(0, 0, 1), radians(self._targetRoll), Space.World)
+
+
 
 uctrl = UniController(earth)
 
@@ -1010,6 +1092,7 @@ screenR = getDisplayConfig().getCanvasRect()
 print("screen is: " + str(screenR[2]) + "x" + str(screenR[3]))
 screen = Vector2(1.0 / screenR[2], 1.0 / screenR[3])
 dispStart = Vector2(0, 0)
+dispTst = Vector2(0, 0)
 
 def handleEvent():
         event = getEvent()
@@ -1027,11 +1110,16 @@ def handleEvent():
                         print("Wand Btn5 up")
 
                 if event.isButtonDown(EventFlags.ButtonUp):
-                        uctrl.Zoom(1.1)
+                        uctrl.Zoom(0.05)
                         print("Wand BtnUp down")
                 if event.isButtonDown(EventFlags.ButtonDown):
-                        uctrl.Zoom(0.9)
+                        uctrl.Zoom(-0.05)
                         print("Wand BtnUp down")
+
+                if event.isButtonDown(EventFlags.ButtonLeft):
+                        uctrl.Roll(-5)
+                if event.isButtonDown(EventFlags.ButtonRight):
+                        uctrl.Roll(5)
 
                 analogUD = event.getAxis(1)
                 analogLR = event.getAxis(0)
@@ -1055,26 +1143,35 @@ def handleEvent():
                         print("Left up")
                 if event.getType() is EventType.Zoom:
                         zoom = event.getExtraDataInt(0)
-                        s = 0.9
-                        if zoom > 0: s = 1.1
+                        s = -0.05
+                        if zoom > 0: s = 0.05
                         uctrl.Zoom(s)
                 
                 if (event.getType() is EventType.Move):
                         pos = event.getPosition()
-                        pos.x *= screen.x
+
+                        pos.x *= screen.y
                         pos.y *= screen.y
                         disp = Vector2(pos.x - dispStart.x, pos.y - dispStart.y)
 
                         dispStart.x = pos.x
                         dispStart.y = pos.y
 
-                        uctrl.Move(disp * 1000)
+                        uctrl.Move(disp * 500)
+
+                if event.isButtonDown(EventFlags.ButtonLeft):
+                        uctrl.Roll(-5)
+                if event.isButtonDown(EventFlags.ButtonRight):
+                        uctrl.Roll(5)
+
+
 
 setEventFunction(handleEvent)
 
 def onUpdate(frame, t, dt):
 
         uctrl.Update(dt)
+        Bars.pollInstantiate()
 
 
 setUpdateFunction(onUpdate)
